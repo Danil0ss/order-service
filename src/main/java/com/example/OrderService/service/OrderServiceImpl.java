@@ -24,7 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -128,9 +132,19 @@ public class OrderServiceImpl implements OrderService{
     private BigDecimal fillOrderItems(Order order, Iterable<OrderItemDTO> itemsDto) {
         BigDecimal total = BigDecimal.ZERO;
 
+        List<Long> itemIds = new ArrayList<>();
+        itemsDto.forEach(dto -> itemIds.add(dto.itemId()));
+        List<Item> items = itemRepository.findAllById(itemIds);
+
+        if (items.size() != itemIds.size()) {
+            throw new EntityNotFoundException("Some items were not found");
+        }
+
+        Map<Long, Item> itemMap = items.stream()
+                .collect(Collectors.toMap(Item::getId, item -> item));
+
         for (OrderItemDTO itemDto : itemsDto) {
-            Item item = itemRepository.findById(itemDto.itemId())
-                    .orElseThrow(() -> new EntityNotFoundException("Item not found with id: " + itemDto.itemId()));
+            Item item = itemMap.get(itemDto.itemId());
 
             OrdersItem ordersItem = new OrdersItem();
             ordersItem.setOrder(order);
