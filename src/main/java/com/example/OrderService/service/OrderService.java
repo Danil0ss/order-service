@@ -16,7 +16,4 @@ public interface OrderService {
     OrderDTO updateOrder(Long id,OrderRequestDTO dto);
     void setStatus(Long id, Status status);
     void deleteOrder(Long id);
-    ItemResponseDTO createItem(ProductDto dto);
-    ItemResponseDTO updateItem(Long id, ProductDto dto );
-
 }

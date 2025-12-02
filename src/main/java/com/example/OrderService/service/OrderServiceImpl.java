@@ -1,18 +1,15 @@
 package com.example.OrderService.service;
 
 import com.example.OrderService.client.UserClient;
-import com.example.OrderService.dto.ItemResponseDTO;
 import com.example.OrderService.dto.OrderDTO;
 import com.example.OrderService.dto.OrderFilterDto;
 import com.example.OrderService.dto.OrderItemDTO;
 import com.example.OrderService.dto.OrderRequestDTO;
-import com.example.OrderService.dto.ProductDto;
 import com.example.OrderService.dto.UserDTO;
 import com.example.OrderService.entity.Item;
 import com.example.OrderService.entity.Order;
 import com.example.OrderService.entity.OrdersItem;
 import com.example.OrderService.entity.Status;
-import com.example.OrderService.mapper.ItemMapper;
 import com.example.OrderService.mapper.OrderMapper;
 import com.example.OrderService.repository.ItemRepository;
 import com.example.OrderService.repository.OrderRepository;
@@ -38,7 +35,6 @@ public class OrderServiceImpl implements OrderService{
     private final ItemRepository itemRepository;
     private final OrderRepository orderRepository;
     private final UserClient userClient;
-    private final ItemMapper itemMapper;
 
     @Override
     @Transactional
@@ -91,24 +87,29 @@ public class OrderServiceImpl implements OrderService{
     @Transactional
     public OrderDTO updateOrder(Long id, OrderRequestDTO dto) {
         log.info("Updating order id: {}", id);
-        Order updatedorder=findOrderByIdOrThrow(id);
+        Order updatedorder = findOrderByIdOrThrow(id);
 
-        if(dto.userId()!= null){
+        if (dto.userId() != null) {
             updatedorder.setUserId(dto.userId());
         }
 
-        if(dto.items()!=null &&!dto.items().isEmpty()){
+        if (dto.items() != null) {
             updatedorder.getOrdersItems().clear();
-            BigDecimal newTotal=fillOrderItems(updatedorder,dto.items());
-            updatedorder.setTotalPrice(newTotal);
-            updatedorder.setStatus(Status.PENDING);
+            orderRepository.saveAndFlush(updatedorder);
+
+            if (!dto.items().isEmpty()) {
+                BigDecimal newTotal = fillOrderItems(updatedorder, dto.items());
+                updatedorder.setTotalPrice(newTotal);
+                updatedorder.setStatus(Status.PENDING);
+            } else {
+                updatedorder.setTotalPrice(BigDecimal.ZERO);
+            }
         }
 
-        Order savedOrder=orderRepository.save(updatedorder);
-        UserDTO user=fetchUserSafe(savedOrder.getUserId());
-        return orderMapper.toDTO(savedOrder,user);
+        Order savedOrder = orderRepository.save(updatedorder);
+        UserDTO user = fetchUserSafe(savedOrder.getUserId());
+        return orderMapper.toDTO(savedOrder, user);
     }
-
     @Override
     @Transactional
     public void setStatus(Long id, Status status) {
@@ -122,24 +123,6 @@ public class OrderServiceImpl implements OrderService{
     public void deleteOrder(Long id) {
         Order order=findOrderByIdOrThrow(id);
         orderRepository.delete(order);
-    }
-
-    @Override
-    @Transactional
-    public ItemResponseDTO createItem(ProductDto dto) {
-        Item item=itemMapper.toEntity(dto);
-        Item savedItem =itemRepository.save(item);
-        return itemMapper.toDto(savedItem);
-    }
-
-    @Override
-    @Transactional
-    public ItemResponseDTO updateItem(Long id, ProductDto dto) {
-        Item item=itemRepository.findById(id)
-                .orElseThrow(()->new EntityNotFoundException("Item not found"));
-        itemMapper.updateEntityFromDto(dto,item);
-        Item saved=itemRepository.save(item);
-        return itemMapper.toDto(saved);
     }
 
     private BigDecimal fillOrderItems(Order order, Iterable<OrderItemDTO> itemsDto) {

@@ -4,7 +4,7 @@ import com.example.OrderService.entity.Order;
 import com.example.OrderService.entity.Status;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 public class OrderSpecifications {
 
@@ -15,7 +15,7 @@ public class OrderSpecifications {
         };
     }
 
-    public static Specification<Order> createdBetween(OffsetDateTime start, OffsetDateTime end) {
+    public static Specification<Order> createdBetween(LocalDateTime start,  LocalDateTime  end) {
         return (root, query, criteriaBuilder) -> {
             if (start == null && end == null) return null;
             if (start != null && end != null) {

@@ -3,13 +3,13 @@ package com.example.OrderService.dto;
 import com.example.OrderService.entity.Status;
 import lombok.Data;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 @Data
 public class OrderFilterDto {
-    private OffsetDateTime createdFrom;
+    private LocalDateTime  createdFrom;
 
-    private OffsetDateTime createdTo;
+    private LocalDateTime createdTo;
 
     private Status status;
 }
