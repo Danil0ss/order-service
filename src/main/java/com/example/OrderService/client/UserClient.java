@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "user-service", url = "${application.config.users-url}")
 public interface UserClient {
 
-    @GetMapping("/api/users/internal/search")
+    @GetMapping("/api/users/internal/{id}")
     @CircuitBreaker(name = "userService", fallbackMethod = "getUserFallback")
     UserDTO getUserById(@PathVariable("id") Long id);
 
