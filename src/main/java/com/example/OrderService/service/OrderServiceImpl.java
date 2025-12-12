@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService{
+public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final ItemRepository itemRepository;
@@ -44,13 +44,22 @@ public class OrderServiceImpl implements OrderService{
     @Override
     @Transactional
     public OrderDTO createOrder(OrderRequestDTO dto) {
-        log.info("Creating order for user: {}", dto.userId());
+        String userIdStr = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        Long userId = Long.parseLong(userIdStr);
+
+        log.info("Creating order for user (from token): {}", userId);
+
         Order order = orderMapper.toEntity(dto);
+        order.setUserId(userId);
         order.setOrdersItems(new HashSet<>());
         BigDecimal totalPrice = fillOrderItems(order, dto.items());
         order.setTotalPrice(totalPrice);
 
+        order.setStatus(Status.PENDING);
+
         order.setUpdatedAt(LocalDateTime.now());
+
 
         Order savedOrder = orderRepository.save(order);
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
@@ -60,9 +69,9 @@ public class OrderServiceImpl implements OrderService{
     @Override
     @Transactional(readOnly = true)
     public OrderDTO getOrderById(Long id) {
-        Order order=findOrderByIdOrThrow(id);
-        UserDTO user=fetchUserSafe(order.getUserId());
-        return orderMapper.toDTO(order,user);
+        Order order = findOrderByIdOrThrow(id);
+        UserDTO user = fetchUserSafe(order.getUserId());
+        return orderMapper.toDTO(order, user);
     }
 
     @Override
@@ -120,6 +129,7 @@ public class OrderServiceImpl implements OrderService{
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
         return orderMapper.toDTO(savedOrder, user);
     }
+
     @Override
     @Transactional
     public void setStatus(Long id, Status status) {
@@ -136,7 +146,6 @@ public class OrderServiceImpl implements OrderService{
     @Transactional
     public void deleteOrder(Long id) {
         Order order = findOrderByIdOrThrow(id);
-
         order.setDeleted(true);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
@@ -177,12 +186,12 @@ public class OrderServiceImpl implements OrderService{
         return total;
     }
 
-    private UserDTO fetchUserSafe(Long userId){
+    private UserDTO fetchUserSafe(Long userId) {
         return userClient.getUserById(userId);
     }
 
-    private Order findOrderByIdOrThrow(Long id){
+    private Order findOrderByIdOrThrow(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(()->new EntityNotFoundException("Order not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
     }
 }

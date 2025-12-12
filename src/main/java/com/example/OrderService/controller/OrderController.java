@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -39,6 +40,7 @@ public class OrderController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<OrderDTO>> getAllOrders(Pageable pageable,@ModelAttribute OrderFilterDto filterDto){
         Page<OrderDTO> page = orderService.getAllOrders(pageable,filterDto);
         return ResponseEntity.ok(page);
@@ -52,18 +54,21 @@ public class OrderController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteOrder(@PathVariable Long id){
         orderService.deleteOrder(id);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long id,@Valid @RequestBody OrderRequestDTO requestDTO){
         OrderDTO updatedOrder=orderService.updateOrder(id,requestDTO);
         return ResponseEntity.ok(updatedOrder);
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> changeOrderStatus(@PathVariable Long id, @RequestParam Status status){
         orderService.setStatus(id,status);
         return ResponseEntity.noContent().build();

@@ -33,6 +33,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -92,6 +94,8 @@ class OrderIntegrationTest {
         String orderJson = objectMapper.writeValueAsString(orderRequest);
 
         mockMvc.perform(post("/api/orders")
+                        .with(user("99").roles("USER"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(orderJson))
                 .andExpect(status().isCreated())
@@ -106,7 +110,10 @@ class OrderIntegrationTest {
         mockUser(99L);
 
         OrderRequestDTO createRequest = new OrderRequestDTO(99L, List.of(new OrderItemDTO(itemId1, 1)));
+
         String createResponse = mockMvc.perform(post("/api/orders")
+                        .with(user("99").roles("USER"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
@@ -117,6 +124,8 @@ class OrderIntegrationTest {
         OrderRequestDTO updateRequest = new OrderRequestDTO(99L, List.of(new OrderItemDTO(itemId2, 3)));
 
         mockMvc.perform(put("/api/orders/" + createdOrder.id())
+                        .with(user("99").roles("ADMIN"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -129,7 +138,10 @@ class OrderIntegrationTest {
         mockUser(99L);
 
         OrderRequestDTO createRequest = new OrderRequestDTO(99L, List.of(new OrderItemDTO(itemId, 1)));
+
         String createResponse = mockMvc.perform(post("/api/orders")
+                        .with(user("99").roles("USER"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
@@ -138,6 +150,8 @@ class OrderIntegrationTest {
         OrderDTO createdOrder = objectMapper.readValue(createResponse, OrderDTO.class);
 
         mockMvc.perform(patch("/api/orders/" + createdOrder.id() + "/status")
+                        .with(user("99").roles("ADMIN"))
+                        .with(csrf())
                         .param("status", "PROCESSING"))
                 .andExpect(status().isNoContent());
 
@@ -151,7 +165,10 @@ class OrderIntegrationTest {
         mockUser(99L);
 
         OrderRequestDTO createRequest = new OrderRequestDTO(99L, List.of(new OrderItemDTO(itemId, 1)));
+
         String createResponse = mockMvc.perform(post("/api/orders")
+                        .with(user("99").roles("USER"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
@@ -159,7 +176,9 @@ class OrderIntegrationTest {
 
         OrderDTO createdOrder = objectMapper.readValue(createResponse, OrderDTO.class);
 
-        mockMvc.perform(delete("/api/orders/" + createdOrder.id()))
+        mockMvc.perform(delete("/api/orders/" + createdOrder.id())
+                        .with(user("99").roles("ADMIN"))
+                        .with(csrf()))
                 .andExpect(status().isNoContent());
 
         Map<String, Object> orderMap = jdbcTemplate.queryForMap(
@@ -179,23 +198,32 @@ class OrderIntegrationTest {
         OrderRequestDTO req = new OrderRequestDTO(99L, List.of(new OrderItemDTO(itemId, 1)));
 
         mockMvc.perform(post("/api/orders")
+                .with(user("99").roles("USER"))
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)));
 
         String res2 = mockMvc.perform(post("/api/orders")
+                        .with(user("99").roles("USER"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andReturn().getResponse().getContentAsString();
         Long id2 = objectMapper.readValue(res2, OrderDTO.class).id();
 
-        mockMvc.perform(patch("/api/orders/" + id2 + "/status").param("status", "COMPLETED"));
+        mockMvc.perform(patch("/api/orders/" + id2 + "/status")
+                .with(user("99").roles("ADMIN"))
+                .with(csrf())
+                .param("status", "COMPLETED"));
 
         mockMvc.perform(get("/api/orders")
-                        .param("status", "CREATED"))
+                        .with(user("99").roles("ADMIN"))
+                        .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1));
 
         mockMvc.perform(get("/api/orders")
+                        .with(user("99").roles("ADMIN"))
                         .param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1));
@@ -203,7 +231,8 @@ class OrderIntegrationTest {
 
     @Test
     void shouldReturn404_WhenOrderNotFound() throws Exception {
-        mockMvc.perform(get("/api/orders/9999"))
+        mockMvc.perform(get("/api/orders/9999")
+                        .with(user("99").roles("ADMIN")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").exists());
     }
@@ -213,6 +242,8 @@ class OrderIntegrationTest {
         String itemJson = objectMapper.writeValueAsString(product);
 
         String itemResponse = mockMvc.perform(post("/api/items")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(itemJson))
                 .andExpect(status().isCreated())
