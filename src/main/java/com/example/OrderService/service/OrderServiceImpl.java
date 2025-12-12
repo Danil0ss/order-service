@@ -43,14 +43,24 @@ public class OrderServiceImpl implements OrderService{
     @Override
     @Transactional
     public OrderDTO createOrder(OrderRequestDTO dto) {
-        log.info("Creating order for user: {}", dto.userId());
-        Order order=orderMapper.toEntity(dto);
+        String userIdStr = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        Long userId = Long.parseLong(userIdStr);
+
+        log.info("Creating order for user (from token): {}", userId);
+
+        Order order = orderMapper.toEntity(dto);
+        order.setUserId(userId);
+
         order.setOrdersItems(new HashSet<>());
         BigDecimal totalPrice = fillOrderItems(order, dto.items());
         order.setTotalPrice(totalPrice);
-        Order savedOrder=orderRepository.save(order);
-        UserDTO user= fetchUserSafe(savedOrder.getUserId());
-        return orderMapper.toDTO(savedOrder,user);
+
+        order.setStatus(Status.PENDING);
+
+        Order savedOrder = orderRepository.save(order);
+        UserDTO user = fetchUserSafe(savedOrder.getUserId());
+        return orderMapper.toDTO(savedOrder, user);
     }
 
     @Override
