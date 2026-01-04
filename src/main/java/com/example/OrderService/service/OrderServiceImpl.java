@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService{
+public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final ItemRepository itemRepository;
@@ -66,9 +66,9 @@ public class OrderServiceImpl implements OrderService{
     @Override
     @Transactional(readOnly = true)
     public OrderDTO getOrderById(Long id) {
-        Order order=findOrderByIdOrThrow(id);
-        UserDTO user=fetchUserSafe(order.getUserId());
-        return orderMapper.toDTO(order,user);
+        Order order = findOrderByIdOrThrow(id);
+        UserDTO user = fetchUserSafe(order.getUserId());
+        return orderMapper.toDTO(order, user);
     }
 
     @Override
@@ -124,18 +124,24 @@ public class OrderServiceImpl implements OrderService{
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
         return orderMapper.toDTO(savedOrder, user);
     }
+
     @Override
     @Transactional
     public void setStatus(Long id, Status status) {
-        Order order=findOrderByIdOrThrow(id);
-        order.setStatus(status);
-        orderRepository.save(order);
+        orderRepository.findById(id).ifPresentOrElse(
+                order -> {
+                    order.setStatus(status);
+                    orderRepository.save(order);
+                    log.info("Статус заказа {} успешно изменен на {}", id, status);
+                },
+                () -> log.warn("Kafka: Заказ {} не найден в базе. Сообщение пропущено.", id)
+        );
     }
 
     @Override
     @Transactional
     public void deleteOrder(Long id) {
-        Order order=findOrderByIdOrThrow(id);
+        Order order = findOrderByIdOrThrow(id);
         orderRepository.delete(order);
     }
 
@@ -169,12 +175,17 @@ public class OrderServiceImpl implements OrderService{
         return total;
     }
 
-    private UserDTO fetchUserSafe(Long userId){
-        return userClient.getUserById(userId);
+    private UserDTO fetchUserSafe(Long userId) {
+        try {
+            return userClient.getUserById(userId);
+        } catch (Exception e) {
+            log.error("Failed to fetch user data for userId: {}", userId);
+            return null;
+        }
     }
 
-    private Order findOrderByIdOrThrow(Long id){
+    private Order findOrderByIdOrThrow(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(()->new EntityNotFoundException("Order not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
     }
 }
