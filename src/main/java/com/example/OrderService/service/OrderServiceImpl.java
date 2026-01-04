@@ -53,14 +53,12 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderMapper.toEntity(dto);
         order.setUserId(userId);
         order.setOrdersItems(new HashSet<>());
+
         BigDecimal totalPrice = fillOrderItems(order, dto.items());
         order.setTotalPrice(totalPrice);
 
         order.setStatus(Status.PENDING);
-
         order.setUpdatedAt(LocalDateTime.now());
-
-
         Order savedOrder = orderRepository.save(order);
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
         return orderMapper.toDTO(savedOrder, user);
@@ -146,6 +144,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void deleteOrder(Long id) {
         Order order = findOrderByIdOrThrow(id);
+        // ВАЖНО: Soft Delete (требование тестов)
         order.setDeleted(true);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
@@ -162,7 +161,6 @@ public class OrderServiceImpl implements OrderService {
         if (items.size() != itemIds.size()) {
             throw new EntityNotFoundException("Some items were not found");
         }
-
         Map<Long, Item> itemMap = items.stream()
                 .collect(Collectors.toMap(Item::getId, item -> item));
 
@@ -187,7 +185,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private UserDTO fetchUserSafe(Long userId) {
-        return userClient.getUserById(userId);
+        try {
+            return userClient.getUserById(userId);
+        } catch (Exception e) {
+            log.error("Failed to fetch user data for userId: {}", userId);
+            return null;
+        }
     }
 
     private Order findOrderByIdOrThrow(Long id) {
