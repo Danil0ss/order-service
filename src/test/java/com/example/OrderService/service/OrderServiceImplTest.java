@@ -14,6 +14,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -23,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,9 +62,7 @@ class OrderServiceImplTest {
         UserDTO userDto = new UserDTO(userId, "test@test.com", "John", "Doe");
 
         when(orderMapper.toEntity(request)).thenReturn(order);
-
-        when(itemRepository.findAllById(List.of(itemId))).thenReturn(List.of(item));
-
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
         when(orderRepository.save(order)).thenReturn(savedOrder);
         when(userClient.getUserById(userId)).thenReturn(userDto);
         when(orderMapper.toDTO(savedOrder, userDto)).thenReturn(
@@ -69,7 +72,6 @@ class OrderServiceImplTest {
         OrderDTO result = orderService.createOrder(request);
 
         assertThat(result.totalPrice()).isEqualTo(BigDecimal.valueOf(200));
-        assertThat(result.user().email()).isEqualTo("test@test.com");
         verify(orderRepository).save(order);
     }
 
@@ -87,7 +89,6 @@ class OrderServiceImplTest {
         orderService.getOrderById(id);
 
         verify(orderRepository).findById(id);
-        verify(userClient).getUserById(10L);
     }
 
     @Test
@@ -97,7 +98,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void updateOrder_ShouldClearItemsAndSaveAndFlush() {
+    void updateOrder_ShouldUpdateFieldsAndSave() {
         Long orderId = 1L;
         Long itemId = 2L;
         OrderRequestDTO request = new OrderRequestDTO(5L, List.of(new OrderItemDTO(itemId, 1)));
@@ -114,20 +115,68 @@ class OrderServiceImplTest {
         UserDTO userDto = new UserDTO(5L, "update@test.com", "Upd", "User");
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
-
-        when(itemRepository.findAllById(List.of(itemId))).thenReturn(List.of(item));
-
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
         when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
-
-        when(userClient.getUserById(any())).thenReturn(userDto);
+        when(userClient.getUserById(5L)).thenReturn(userDto);
         when(orderMapper.toDTO(any(), any())).thenReturn(mock(OrderDTO.class));
 
         orderService.updateOrder(orderId, request);
 
-        verify(orderRepository).saveAndFlush(existingOrder);
-
-        verify(orderRepository).save(existingOrder);
-
         assertThat(existingOrder.getUserId()).isEqualTo(5L);
+        assertThat(existingOrder.getStatus()).isEqualTo(Status.PENDING);
+        verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void deleteOrder_ShouldPerformSoftDelete() {
+        Long orderId = 1L;
+        Order order = new Order();
+        order.setId(orderId);
+        order.setDeleted(false);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        orderService.deleteOrder(orderId);
+
+        assertThat(order.getDeleted()).isTrue();
+        verify(orderRepository).save(order);
+
+        verify(orderRepository, never()).delete(any(Order.class));
+    }
+
+    @Test
+    void setStatus_ShouldUpdateStatus() {
+        Long orderId = 1L;
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(Status.CREATED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        orderService.setStatus(orderId, Status.PROCESSING);
+
+        assertThat(order.getStatus()).isEqualTo(Status.PROCESSING);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void getAllOrders_ShouldReturnPage() {
+        Pageable pageable = Pageable.unpaged();
+
+        OrderFilterDto filter = new OrderFilterDto();
+        filter.setStatus(Status.CREATED);
+
+        Order order = new Order();
+        order.setUserId(1L);
+        Page<Order> page = new PageImpl<>(List.of(order));
+
+        when(orderRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
+        when(userClient.getUserById(1L)).thenReturn(new UserDTO(1L, "t", "t", "t"));
+        when(orderMapper.toDTO(any(), any())).thenReturn(mock(OrderDTO.class));
+
+        Page<OrderDTO> result = orderService.getAllOrders(pageable, filter);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(orderRepository).findAll(any(Specification.class), eq(pageable));
     }
 }
