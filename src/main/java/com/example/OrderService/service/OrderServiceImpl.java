@@ -1,13 +1,7 @@
 package com.example.OrderService.service;
 
 import com.example.OrderService.client.UserClient;
-import com.example.OrderService.dto.ItemResponseDTO;
-import com.example.OrderService.dto.OrderDTO;
-import com.example.OrderService.dto.OrderFilterDto;
-import com.example.OrderService.dto.OrderItemDTO;
-import com.example.OrderService.dto.OrderRequestDTO;
-import com.example.OrderService.dto.ProductDto;
-import com.example.OrderService.dto.UserDTO;
+import com.example.OrderService.dto.*;
 import com.example.OrderService.entity.Item;
 import com.example.OrderService.entity.Order;
 import com.example.OrderService.entity.OrdersItem;
@@ -27,12 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl implements OrderService{
+public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final ItemRepository itemRepository;
@@ -44,21 +39,24 @@ public class OrderServiceImpl implements OrderService{
     @Transactional
     public OrderDTO createOrder(OrderRequestDTO dto) {
         log.info("Creating order for user: {}", dto.userId());
-        Order order=orderMapper.toEntity(dto);
+        Order order = orderMapper.toEntity(dto);
         order.setOrdersItems(new HashSet<>());
         BigDecimal totalPrice = fillOrderItems(order, dto.items());
         order.setTotalPrice(totalPrice);
-        Order savedOrder=orderRepository.save(order);
-        UserDTO user= fetchUserSafe(savedOrder.getUserId());
-        return orderMapper.toDTO(savedOrder,user);
+
+        order.setUpdatedAt(OffsetDateTime.now());
+
+        Order savedOrder = orderRepository.save(order);
+        UserDTO user = fetchUserSafe(savedOrder.getUserId());
+        return orderMapper.toDTO(savedOrder, user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public OrderDTO getOrderById(Long id) {
-        Order order=findOrderByIdOrThrow(id);
-        UserDTO user=fetchUserSafe(order.getUserId());
-        return orderMapper.toDTO(order,user);
+        Order order = findOrderByIdOrThrow(id);
+        UserDTO user = fetchUserSafe(order.getUserId());
+        return orderMapper.toDTO(order, user);
     }
 
     @Override
@@ -91,54 +89,64 @@ public class OrderServiceImpl implements OrderService{
     @Transactional
     public OrderDTO updateOrder(Long id, OrderRequestDTO dto) {
         log.info("Updating order id: {}", id);
-        Order updatedorder=findOrderByIdOrThrow(id);
+        Order updatedOrder = findOrderByIdOrThrow(id);
 
-        if(dto.userId()!= null){
-            updatedorder.setUserId(dto.userId());
+        // Обновляем поля (аналог COALESCE)
+        if (dto.userId() != null) {
+            updatedOrder.setUserId(dto.userId());
         }
 
-        if(dto.items()!=null &&!dto.items().isEmpty()){
-            updatedorder.getOrdersItems().clear();
-            BigDecimal newTotal=fillOrderItems(updatedorder,dto.items());
-            updatedorder.setTotalPrice(newTotal);
-            updatedorder.setStatus(Status.PENDING);
+        if (dto.items() != null && !dto.items().isEmpty()) {
+            updatedOrder.getOrdersItems().clear();
+            BigDecimal newTotal = fillOrderItems(updatedOrder, dto.items());
+            updatedOrder.setTotalPrice(newTotal);
+            updatedOrder.setStatus(Status.PENDING);
         }
 
-        Order savedOrder=orderRepository.save(updatedorder);
-        UserDTO user=fetchUserSafe(savedOrder.getUserId());
-        return orderMapper.toDTO(savedOrder,user);
+        updatedOrder.setUpdatedAt(OffsetDateTime.now());
+
+        Order savedOrder = orderRepository.save(updatedOrder);
+        UserDTO user = fetchUserSafe(savedOrder.getUserId());
+        return orderMapper.toDTO(savedOrder, user);
     }
 
     @Override
     @Transactional
     public void setStatus(Long id, Status status) {
-        Order order=findOrderByIdOrThrow(id);
-        order.setStatus(status);
-        orderRepository.save(order);
+        Order order = findOrderByIdOrThrow(id);
+
+        if (order.getStatus() != status) {
+            order.setStatus(status);
+            order.setUpdatedAt(OffsetDateTime.now());
+            orderRepository.save(order);
+        }
     }
 
     @Override
     @Transactional
     public void deleteOrder(Long id) {
-        Order order=findOrderByIdOrThrow(id);
-        orderRepository.delete(order);
+        Order order = findOrderByIdOrThrow(id);
+
+        order.setDeleted(true);
+        order.setUpdatedAt(OffsetDateTime.now());
+        orderRepository.save(order);
     }
 
     @Override
     @Transactional
     public ItemResponseDTO createItem(ProductDto dto) {
-        Item item=itemMapper.toEntity(dto);
-        Item savedItem =itemRepository.save(item);
+        Item item = itemMapper.toEntity(dto);
+        Item savedItem = itemRepository.save(item);
         return itemMapper.toDto(savedItem);
     }
 
     @Override
     @Transactional
     public ItemResponseDTO updateItem(Long id, ProductDto dto) {
-        Item item=itemRepository.findById(id)
-                .orElseThrow(()->new EntityNotFoundException("Item not found"));
-        itemMapper.updateEntityFromDto(dto,item);
-        Item saved=itemRepository.save(item);
+        Item item = itemRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Item not found"));
+        itemMapper.updateEntityFromDto(dto, item);
+        Item saved = itemRepository.save(item);
         return itemMapper.toDto(saved);
     }
 
@@ -162,12 +170,12 @@ public class OrderServiceImpl implements OrderService{
         return total;
     }
 
-    private UserDTO fetchUserSafe(Long userId){
+    private UserDTO fetchUserSafe(Long userId) {
         return userClient.getUserById(userId);
     }
 
-    private Order findOrderByIdOrThrow(Long id){
+    private Order findOrderByIdOrThrow(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(()->new EntityNotFoundException("Order not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
     }
 }
