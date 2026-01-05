@@ -25,10 +25,7 @@ import java.util.Set;
 
 @Entity
 @Table(
-        name="orders",
-        indexes = {
-                @Index(name="idx_order_user_id",columnList = "user_id")
-        }
+        name="orders"
 )
 @SQLDelete(sql = "UPDATE orders SET deleted = true WHERE id = ?")
 @SQLRestriction("deleted = false")
