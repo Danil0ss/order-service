@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 
 @Service
@@ -33,7 +33,6 @@ public class OrderServiceImpl implements OrderService {
     private final ItemRepository itemRepository;
     private final OrderRepository orderRepository;
     private final UserClient userClient;
-    private final ItemMapper itemMapper;
 
     @Override
     @Transactional
@@ -44,7 +43,7 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalPrice = fillOrderItems(order, dto.items());
         order.setTotalPrice(totalPrice);
 
-        order.setUpdatedAt(OffsetDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
@@ -91,7 +90,6 @@ public class OrderServiceImpl implements OrderService {
         log.info("Updating order id: {}", id);
         Order updatedOrder = findOrderByIdOrThrow(id);
 
-        // Обновляем поля (аналог COALESCE)
         if (dto.userId() != null) {
             updatedOrder.setUserId(dto.userId());
         }
@@ -103,7 +101,7 @@ public class OrderServiceImpl implements OrderService {
             updatedOrder.setStatus(Status.PENDING);
         }
 
-        updatedOrder.setUpdatedAt(OffsetDateTime.now());
+        updatedOrder.setUpdatedAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(updatedOrder);
         UserDTO user = fetchUserSafe(savedOrder.getUserId());
@@ -117,7 +115,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (order.getStatus() != status) {
             order.setStatus(status);
-            order.setUpdatedAt(OffsetDateTime.now());
+            order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
         }
     }
@@ -128,26 +126,8 @@ public class OrderServiceImpl implements OrderService {
         Order order = findOrderByIdOrThrow(id);
 
         order.setDeleted(true);
-        order.setUpdatedAt(OffsetDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
-    }
-
-    @Override
-    @Transactional
-    public ItemResponseDTO createItem(ProductDto dto) {
-        Item item = itemMapper.toEntity(dto);
-        Item savedItem = itemRepository.save(item);
-        return itemMapper.toDto(savedItem);
-    }
-
-    @Override
-    @Transactional
-    public ItemResponseDTO updateItem(Long id, ProductDto dto) {
-        Item item = itemRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Item not found"));
-        itemMapper.updateEntityFromDto(dto, item);
-        Item saved = itemRepository.save(item);
-        return itemMapper.toDto(saved);
     }
 
     private BigDecimal fillOrderItems(Order order, Iterable<OrderItemDTO> itemsDto) {
