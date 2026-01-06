@@ -20,18 +20,20 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build and Test with Maven
+
+      - name: Run Unit and Integration Tests
         run: mvn clean verify
 
-      - name: Upload JAR Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: order-service-jar
-          path: target/*.jar
-          retention-days: 1
 
       - name: Build Docker Image
         run: docker build -t order-service:latest .
 
-      - name: Check Docker Image
-        run: docker images | grep order-service
+      - name: Save Docker Image to File
+        run: docker save order-service:latest > order-service-image.tar
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-service-docker-image
+          path: order-service-image.tar
+          retention-days: 1
