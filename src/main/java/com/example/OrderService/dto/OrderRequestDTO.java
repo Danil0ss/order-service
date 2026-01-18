@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record OrderRequestDTO (
-        @NotNull(message = "User ID is required")
         Long userId,
 
         @NotEmpty(message = "Order must not be empty")
