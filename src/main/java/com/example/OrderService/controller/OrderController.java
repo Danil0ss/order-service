@@ -74,5 +74,13 @@ public class OrderController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<Page<OrderDTO>> getMyOrders(
+            Pageable pageable,
+            @ModelAttribute OrderFilterDto filterDto
+    ) {
+        Page<OrderDTO> page = orderService.getMyOrders(pageable, filterDto);
+        return ResponseEntity.ok(page);
+    }
 
 }

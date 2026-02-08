@@ -26,7 +26,6 @@ public class ItemController {
     private final ItemService itemService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<ItemResponseDTO>> getAllItems(Pageable pageable){
         Page<ItemResponseDTO> page=itemService.getAllItems(pageable);
         return ResponseEntity.ok(page);

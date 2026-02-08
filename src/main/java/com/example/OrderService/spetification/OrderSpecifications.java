@@ -15,7 +15,7 @@ public class OrderSpecifications {
         };
     }
 
-    public static Specification<Order> createdBetween(LocalDateTime start,  LocalDateTime  end) {
+    public static Specification<Order> createdBetween(LocalDateTime start, LocalDateTime end) {
         return (root, query, criteriaBuilder) -> {
             if (start == null && end == null) return null;
             if (start != null && end != null) {
@@ -25,6 +25,13 @@ public class OrderSpecifications {
             } else {
                 return criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), end);
             }
+        };
+    }
+
+    public static Specification<Order> hasUserId(Long userId) {
+        return (root, query, criteriaBuilder) -> {
+            if (userId == null) return null;
+            return criteriaBuilder.equal(root.get("userId"), userId);
         };
     }
 }

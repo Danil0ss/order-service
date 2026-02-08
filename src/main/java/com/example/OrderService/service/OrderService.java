@@ -14,4 +14,5 @@ public interface OrderService {
     OrderDTO updateOrder(Long id,OrderRequestDTO dto);
     void setStatus(Long id, Status status);
     void deleteOrder(Long id);
+    Page<OrderDTO> getMyOrders(Pageable pageable, OrderFilterDto filter);
 }

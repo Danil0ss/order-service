@@ -144,7 +144,6 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void deleteOrder(Long id) {
         Order order = findOrderByIdOrThrow(id);
-        // ВАЖНО: Soft Delete (требование тестов)
         order.setDeleted(true);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
@@ -196,5 +195,33 @@ public class OrderServiceImpl implements OrderService {
     private Order findOrderByIdOrThrow(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderDTO> getMyOrders(Pageable pageable, OrderFilterDto filter) {
+        String userIdStr = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        Long currentUserId = Long.parseLong(userIdStr);
+        Specification<Order> spec = OrderSpecifications.hasUserId(currentUserId);
+
+        if (filter != null) {
+            if (filter.getStatus() != null) {
+                spec = spec.and(OrderSpecifications.hasStatus(filter.getStatus()));
+            }
+            if (filter.getCreatedFrom() != null || filter.getCreatedTo() != null) {
+                spec = spec.and(OrderSpecifications.createdBetween(
+                        filter.getCreatedFrom(),
+                        filter.getCreatedTo()
+                ));
+            }
+        }
+
+        Page<Order> orders = orderRepository.findAll(spec, pageable);
+
+        return orders.map(order -> {
+            UserDTO user = fetchUserSafe(order.getUserId());
+            return orderMapper.toDTO(order, user);
+        });
     }
 }
