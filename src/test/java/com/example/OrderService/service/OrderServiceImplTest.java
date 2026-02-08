@@ -18,6 +18,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -53,7 +56,6 @@ class OrderServiceImplTest {
 
         Order order = new Order();
         order.setOrdersItems(new HashSet<>());
-
         Order savedOrder = new Order();
         savedOrder.setId(55L);
         savedOrder.setUserId(userId);
@@ -61,8 +63,15 @@ class OrderServiceImplTest {
 
         UserDTO userDto = new UserDTO(userId, "test@test.com", "John", "Doe");
 
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn(String.valueOf(userId));
+        SecurityContextHolder.setContext(securityContext);
+
         when(orderMapper.toEntity(request)).thenReturn(order);
-        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
+
+        when(itemRepository.findAllById(List.of(itemId))).thenReturn(List.of(item));
         when(orderRepository.save(order)).thenReturn(savedOrder);
         when(userClient.getUserById(userId)).thenReturn(userDto);
         when(orderMapper.toDTO(savedOrder, userDto)).thenReturn(
@@ -73,8 +82,8 @@ class OrderServiceImplTest {
 
         assertThat(result.totalPrice()).isEqualTo(BigDecimal.valueOf(200));
         verify(orderRepository).save(order);
+        SecurityContextHolder.clearContext();
     }
-
     @Test
     void getOrderById_ShouldReturnOrder_WhenExists() {
         Long id = 1L;
@@ -115,7 +124,10 @@ class OrderServiceImplTest {
         UserDTO userDto = new UserDTO(5L, "update@test.com", "Upd", "User");
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
-        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
+
+        when(itemRepository.findAllById(List.of(itemId))).thenReturn(List.of(item));
+
+
         when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
         when(userClient.getUserById(5L)).thenReturn(userDto);
         when(orderMapper.toDTO(any(), any())).thenReturn(mock(OrderDTO.class));
@@ -124,6 +136,7 @@ class OrderServiceImplTest {
 
         assertThat(existingOrder.getUserId()).isEqualTo(5L);
         assertThat(existingOrder.getStatus()).isEqualTo(Status.PENDING);
+
         verify(orderRepository).save(existingOrder);
     }
 
