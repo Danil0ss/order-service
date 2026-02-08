@@ -25,7 +25,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        // Все запросы к заказам требуют авторизации
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
